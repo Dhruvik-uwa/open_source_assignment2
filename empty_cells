@@ -2,14 +2,37 @@
 
 FILE_NAME="$1"
 SEPARATOR="$2"
+# Checking that arguments are intact
+if [[ -z "$FILE_NAME" || -z "$SEPARATOR" ]]; then
+    echo "Usage: $0 <file_name> <separator>" >&2
+    exit 1
+fi
 
+# Checking the existance of file exists
+if [[ ! -f "$FILE_NAME" ]]; then
+    echo "Error: File '$FILE_NAME' not found." >&2
+    exit 1
+fi
+
+# Check that file is not empty
+if [[ ! -s "$FILE_NAME" ]]; then
+    echo "Error: File '$FILE_NAME' is empty." >&2
+    exit 1
+fi
 if [[ ! -f "$1" ]]; then
     echo "Error: File not found" >&2
     exit 1
 fi
 # Read headers 
 IFS="$SEPARATOR" read -r -a HEADS < <(head -n 1 "$FILE_NAME")
+# Checking if headers are proper or not
+if [[ ${#HEADS[@]} -eq 0 ]]; then
+    echo "Error: Failed to read headers or file is malformed." >&2
+    exit 1
+fi
+#Declaring the counter 
 declare -a COUNTER
+#Initaiting counter for each header
 for ((i=0; i<${#HEADS[@]}; i++)); do
     COUNTER[i]=0
 done
@@ -23,7 +46,7 @@ done
             field="${field#"${field%%[![:space:]]*}"}"
             field="${field%"${field##*[![:space:]]}"}"
             if [[ -z "$field" ]]; then
-                ((COUNTER[i]++))
+                ((COUNTER[i]++)) #updating the counter where empty_cell is notified
             fi
         done
     done
