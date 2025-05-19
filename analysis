@@ -2,13 +2,32 @@
 
 FILE_NAME="$1"
 
+#Checking file argument provided
+if [[ -z "$FILE_NAME" ]]; then
+    echo "Error: No input file specified."
+    echo "Usage: $0 <filename>"
+    exit 1
+fi
+
+#Checking if the file exists 
 if [[ ! -f "$FILE_NAME" ]]; then
-    echo "File not found!"
+    echo "Error: File '$FILE_NAME' not found!"
+    exit 1
+fi
+
+#Checking if the file is readable 
+if [[ ! -r "$FILE_NAME" ]]; then
+    echo "Error: File '$FILE_NAME' is not readable!"
     exit 1
 fi
 
 # Get indexes
 header=$(head -n 1 "$FILE_NAME")
+#Checking wether header is empty or not
+if [[ -z "$header" ]]; then
+    echo "Error: File '$FILE_NAME' appears to be empty or has no header."
+    exit 1
+fi
 IFS=$'\t' read -r -a cols <<< "$header"
 
 # Initiaize column indexes
