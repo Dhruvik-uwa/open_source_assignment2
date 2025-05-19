@@ -6,30 +6,28 @@ FILE_NAME="$1"
 maximum_id=$(awk -F';' 'NR > 1 && $1 ~ /^[0-9]+$/ && $1 > max { max = $1 } END { print max+0 }' "$FILE_NAME")
 made_up_id=$((maximum_id + 1))
 
-# Print header (convert ; to tabs, clean carriage returns)
 head -n 1 "$FILE_NAME" | tr ';' '\t' | tr -d '\r' | tr -cd '\11\12\15\40-\176'
 echo
 
-# Process rows
+#Processing all rows
 tail -n +2 "$FILE_NAME" | while IFS= read -r line; do
-    # Remove carriage returns
     line="${line//$'\r'/}"
 
-    # Split into fields using ';'
+    # Splitting the fields by the use of  ';'
     IFS=';' read -ra fields <<< "$line"
 
-    # Assign new ID if missing
+    # Assignment of new ID if missing
     if [[ -z "${fields[0]}" ]]; then
         fields[0]=$made_up_id
         ((made_up_id++))
     fi
 
-    # Convert decimal commas to dots ONLY in:
-    # Rating Average (index 8) and Complexity Average (index 10)
+    #Convert decimal commas to dots ONLY  and not the ones that are already in the mechanics and domain list:
+    #Rating Average (index 8) and Complexity Average (index 10)
     fields[8]="${fields[8]//,/.}"
     fields[10]="${fields[10]//,/.}"
 
-    # Output line as tab-separated, ASCII-cleaned
+    #ASCII-cleaned
     output_line=$(printf "%s\t" "${fields[@]}")
     echo "${output_line%$'\t'}" | tr -cd '\11\12\15\40-\176'
 done
