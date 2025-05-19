@@ -1,0 +1,130 @@
+#!/bin/bash
+
+FILE_NAME="$1"
+
+if [[ ! -f "$FILE_NAME" ]]; then
+    echo "File not found!"
+    exit 1
+fi
+
+# Get indexes
+header=$(head -n 1 "$FILE_NAME")
+IFS=$'\t' read -r -a cols <<< "$header"
+
+# Initiaize column indexes
+year_idx=0
+rating_idx=0
+complexity_idx=0
+mech_idx=0
+dom_idx=0
+
+for i in "${!cols[@]}"; do
+    col="${cols[$i]}"
+    case "$col" in
+        "Year Published") year_idx=$i ;;
+        "Rating Average") rating_idx=$i ;;
+        "Complexity Average") complexity_idx=$i ;;
+        "Mechanics") mech_idx=$i ;;
+        "Domains") dom_idx=$i ;;
+    esac
+done
+
+# Declaring counters and arrays
+declare -A mechanics_count
+declare -A domains_count
+years=()
+ratings=()
+complexities=()
+
+# Read and process data
+while IFS=$'\t' read -r -a flds; do
+    year="${flds[$year_idx]}"
+    rating="${flds[$rating_idx]}"
+    complexity="${flds[$complexity_idx]}"
+    mechanics="${flds[$mech_idx]}"
+    domains="${flds[$dom_idx]}"
+
+    #Storing numeric fields
+    if [[ "$year" =~ ^[0-9]+$ && "$rating" =~ ^[0-9]+(\.[0-9]+)?$ && "$complexity" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        years+=("$year")
+        ratings+=("$rating")
+        complexities+=("$complexity")
+    fi
+
+    # Process mechanics by the use of ',' as separator
+    if [[ -n "$mechanics" ]]; then
+        IFS=',' read -ra m_list <<< "$mechanics"
+        for mec in "${m_list[@]}"; do
+            mec=$(echo "$mec" | xargs)  # trim whitespace
+            [[ -n "$mec" ]] && ((mechanics_count["$mec"]++))
+        done
+    fi
+
+    # Process domains by the use ',' as separator
+    if [[ -n "$domains" ]]; then
+        IFS=',' read -ra d_list <<< "$domains"
+        for d_mains in "${d_list[@]}"; do
+            d_mains=$(echo "$d_mains" | xargs)  # trim whitespace
+            [[ -n "$d_mains" ]] && ((domains_count["$d_mains"]++))
+        done
+    fi
+done < <(tail -n +2 "$FILE_NAME")
+
+
+
+# Pearson Correlation Function
+pearson() {
+    local -n x=$1
+    local -n y=$2
+
+    paste <(printf "%s\n" "${x[@]}") <(printf "%s\n" "${y[@]}") | \
+    awk '
+    {
+        sum_x += $1
+        sum_y += $2
+        sum_xy += $1 * $2
+        sum_x2 += $1 * $1
+        sum_y2 += $2 * $2
+        n++
+    }
+    END {
+        numerator = n * sum_xy - sum_x * sum_y
+        denominator = sqrt((n * sum_x2 - sum_x^2) * (n * sum_y2 - sum_y^2))
+        if (denominator == 0) {
+            print 0
+        } else {
+            printf "%.3f\n", numerator / denominator
+        }
+    }'
+}
+
+
+# Question1: Most popular mechanic
+most_mec=""
+max_mec=0
+for k in "${!mechanics_count[@]}"; do
+    if (( mechanics_count[$k] > max_mec )); then
+        most_mec="$k"
+        max_mec=${mechanics_count[$k]}
+    fi
+done
+
+# Question2: Most popular domain
+most_d_main=""
+max_d_main=0
+for k in "${!domains_count[@]}"; do
+    if (( domains_count[$k] > max_d_main )); then
+        most_d_main="$k"
+        max_d_main=${domains_count[$k]}
+    fi
+done
+
+# Output 
+echo "The most popular game mechanics is $most_mech found in $max_mec games"
+echo "The most game domain is $most_dom found in $max_d_main games"
+
+yer_corr=$(pearson years ratings)
+com_corr=$(pearson complexities ratings)
+
+echo "The correlation between the year of publication and the average rating is $yer_corr"
+echo "The correlation between the complexity of a game and its average rating is $com_corr"

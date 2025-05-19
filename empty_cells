@@ -1,0 +1,36 @@
+#!/bin/bash
+
+FILE_NAME="$1"
+SEPARATOR="$2"
+
+if [[ ! -f "$1" ]]; then
+    echo "Error: File not found" >&2
+    exit 1
+fi
+# Read headers 
+IFS="$SEPARATOR" read -r -a HEADS < <(head -n 1 "$FILE_NAME")
+declare -a COUNTER
+for ((i=0; i<${#HEADS[@]}; i++)); do
+    COUNTER[i]=0
+done
+
+# Reading each line
+{
+    read 
+    while IFS="$SEPARATOR" read -r -a FIELDS; do
+        for ((i = 0; i < ${#HEADS[@]}; i++)); do
+            field="${FIELDS[i]}"
+            field="${field#"${field%%[![:space:]]*}"}"
+            field="${field%"${field##*[![:space:]]}"}"
+            if [[ -z "$field" ]]; then
+                ((COUNTER[i]++))
+            fi
+        done
+    done
+} < "$FILE_NAME"
+
+# Print results
+for ((i=0; i<${#HEADS[@]}; i++)); do
+    echo "${HEADS[i]}: ${COUNTER[i]}"
+done
+
